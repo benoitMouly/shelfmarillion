@@ -3,24 +3,7 @@ import type { SubmitEvent } from "react";
 import { BookCardSkeleton } from "../../../components/BookCardSkeleton";
 import { SectionHeader } from "../../../components/SectionHeader";
 import type { GutendexBook } from "../schemas/gutendex.schema";
-import type { AddBookResult } from "../types/use-library-return.type";
-
-type GutendexSearchSectionProps = {
-  apiSearchTerm: string;
-  results: GutendexBook[];
-  isLoading: boolean;
-  hasSearched: boolean;
-  errorMessage: string | null;
-  currentPage: number;
-  hasNextPage: boolean;
-  hasPreviousPage: boolean;
-  setApiSearchTerm: (value: string) => void;
-  searchBooks: (params?: { page?: number; term?: string }) => Promise<void>;
-  goToNextPage: () => Promise<void>;
-  goToPreviousPage: () => Promise<void>;
-  onAddBook: (book: GutendexBook) => AddBookResult;
-  libraryBookIds: Set<number>;
-};
+import type { GutendexSearchSectionProps } from "../types/gutendex-search-section-props.type";
 
 export const GutendexSearchSection = ({
   apiSearchTerm,
@@ -58,8 +41,9 @@ export const GutendexSearchSection = ({
   };
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section aria-labelledby="gutendex-section-title" className="rounded-card border border-border-default bg-surface-card p-6 shadow-card">
       <SectionHeader
+        titleId="gutendex-section-title"
         title="Search in Gutendex"
         subtitle="Search for a book by title or author, then add it to your library."
       />
@@ -75,44 +59,52 @@ export const GutendexSearchSection = ({
           value={apiSearchTerm}
           onChange={(event) => setApiSearchTerm(event.target.value)}
           placeholder="Search by title or author"
-          className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none ring-0 transition focus:border-slate-500"
+          className="w-full rounded-input border border-border-input px-4 py-2 text-sm outline-none ring-0 transition focus:border-border-focus"
         />
 
         <button
           type="submit"
           disabled={isLoading}
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-input bg-primary-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isLoading ? "Searching..." : "Search"}
         </button>
       </form>
 
       {feedbackMessage ? (
-        <p className="mb-4 text-sm text-slate-700" aria-live="polite">
+        // aria-live="polite" : annonce le message sans interrompre l'utilisateur (WCAG 4.1.3)
+        <p className="mb-4 text-sm text-text-subtle" aria-live="polite" aria-atomic="true">
           {feedbackMessage}
         </p>
       ) : null}
 
       {errorMessage ? (
-        <p className="mb-4 text-sm text-red-600" aria-live="polite">
+        // role="alert" (= aria-live="assertive") : interrompt immédiatement le lecteur d'écran
+        // car une erreur est une information critique qui ne doit pas attendre (WCAG 4.1.3)
+        <p className="mb-4 text-sm text-danger-600" role="alert" aria-atomic="true">
           {errorMessage}
         </p>
       ) : null}
 
       {!isLoading && !hasSearched && !errorMessage ? (
-        <p className="text-sm text-slate-500">
+        // aria-live="polite" : annonce l'état initial au lecteur d'écran (WCAG 4.1.3)
+        <p className="text-sm text-text-muted" aria-live="polite">
           No results yet. Start by searching for a book.
         </p>
       ) : null}
 
       {!isLoading && hasSearched && !errorMessage && results.length === 0 ? (
-        <p className="text-sm text-slate-500">
+        // role="status" : annonce poliment qu'aucun résultat n'a été trouvé après la recherche
+        // sans interrompre — équivalent sémantique de aria-live="polite" (WCAG 4.1.3)
+        <p className="text-sm text-text-muted" role="status" aria-atomic="true">
           No books found for your search. Try a different title or author.
         </p>
       ) : null}
 
       {isLoading ? (
-        <ul className="grid gap-4">
+        // aria-busy : signale aux technologies d'assistance que la liste est en cours de
+        // chargement — aria-label donne un contexte à la liste vide (WCAG 4.1.3)
+        <ul aria-busy="true" aria-label="Loading search results" className="grid gap-4">
           {Array.from({ length: 3 }).map((_, index) => (
             <BookCardSkeleton key={index} />
           ))}
@@ -133,9 +125,9 @@ export const GutendexSearchSection = ({
               return (
                 <li
                   key={book.id}
-                  className="flex flex-col gap-4 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-start"
+                  className="flex flex-col gap-4 rounded-input border border-border-default p-4 sm:flex-row sm:items-start"
                 >
-                  <div className="h-32 w-24 shrink-0 overflow-hidden rounded-md bg-slate-100">
+                  <div className="h-32 w-24 shrink-0 overflow-hidden rounded-md bg-surface-muted">
                     {coverUrl ? (
                       <img
                         src={coverUrl}
@@ -143,7 +135,9 @@ export const GutendexSearchSection = ({
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">
+                      // aria-hidden : texte purement décoratif, l'absence de couverture
+                      // est déjà implicite pour les lecteurs d'écran (WCAG 1.1.1)
+                      <div aria-hidden="true" className="flex h-full w-full items-center justify-center text-xs text-text-muted">
                         No cover
                       </div>
                     )}
@@ -151,15 +145,15 @@ export const GutendexSearchSection = ({
 
                   <div className="min-w-0 flex-1 space-y-2">
                     <div>
-                      <h3 className="font-semibold text-slate-900">{book.title}</h3>
-                      <p className="text-sm text-slate-600">
+                      <h3 className="font-semibold text-text-heading">{book.title}</h3>
+                      <p className="text-sm text-text-body">
                         {book.authors.length > 0
                           ? book.authors.map((author) => author.name).join(", ")
                           : "Unknown author"}
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+                    <div className="flex flex-wrap gap-2 text-xs text-text-subtle">
                       <span>Languages: {book.languages.join(", ") || "N/A"}</span>
                       <span>Downloads: {book.download_count}</span>
                     </div>
@@ -170,7 +164,10 @@ export const GutendexSearchSection = ({
                       type="button"
                       onClick={() => handleAddBook(book)}
                       disabled={isAlreadyAdded}
-                      className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      // aria-label : contextualise le bouton avec le titre du livre pour les lecteurs
+                      // d'écran — évite la répétition de "Add to library" sans contexte (WCAG 2.4.6)
+                      aria-label={isAlreadyAdded ? `"${book.title}" already in library` : `Add "${book.title}" to library`}
+                      className="rounded-input border border-border-default px-4 py-2 text-sm font-medium text-text-heading transition hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {isAlreadyAdded ? "Already added" : "Add to library"}
                     </button>
@@ -180,27 +177,35 @@ export const GutendexSearchSection = ({
             })}
           </ul>
 
-          <div className="flex items-center justify-between gap-3">
+          {/* aria-live="polite" + aria-atomic : annonce discrètement le numéro de page
+              courant au lecteur d'écran après chaque changement de page (WCAG 4.1.3) */}
+          <p className="sr-only" aria-live="polite" aria-atomic="true">
+            Page {currentPage}
+          </p>
+
+          {/* nav + aria-label : identifie clairement la zone de pagination comme un landmark
+              de navigation distinct, consultable via raccourci clavier (WCAG 2.4.1) */}
+          <nav aria-label="Search results pagination" className="flex items-center justify-between gap-3">
             <button
               type="button"
               onClick={() => void goToPreviousPage()}
               disabled={!hasPreviousPage || isLoading}
-              className="rounded-xl border border-slate-300 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-input border border-border-default px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
             >
               Previous
             </button>
 
-            <span className="text-sm text-slate-600">Page {currentPage}</span>
+            <span className="text-sm text-text-body">Page {currentPage}</span>
 
             <button
               type="button"
               onClick={() => void goToNextPage()}
               disabled={!hasNextPage || isLoading}
-              className="rounded-xl border border-slate-300 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-input border border-border-default px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
             >
               Next
             </button>
-          </div>
+          </nav>
         </div>
       ) : null}
     </section>

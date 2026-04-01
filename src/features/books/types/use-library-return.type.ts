@@ -8,12 +8,17 @@ export type AddBookResult =
 export type UseLibraryReturn = {
   books: LibraryBook[];
   filteredBooks: LibraryBook[];
+  paginatedBooks: LibraryBook[];
   librarySearchTerm: string;
   readFilter: ReadFilter;
+  currentPage: number;
+  totalPages: number;
   addBook: (book: LibraryBook) => AddBookResult;
   removeBook: (bookId: number) => void;
   toggleReadStatus: (bookId: number) => void;
   setLibrarySearchTerm: (value: string) => void;
   setReadFilter: (value: ReadFilter) => void;
   clearLibrary: () => void;
+  goToNextPage: () => void;
+  goToPreviousPage: () => void;
 };

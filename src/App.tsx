@@ -15,10 +15,10 @@ function App() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
+    <main className="min-h-screen bg-surface-page px-4 py-8">
       <div className="mx-auto flex max-w-6xl flex-col gap-8">
         <AppHeader
-          title="My Library"
+          title="ShelfMarillion"
           subtitle="Search books from Gutendex and manage your local library."
         />
 
@@ -42,13 +42,18 @@ function App() {
         <LibrarySection
           books={library.books}
           filteredBooks={library.filteredBooks}
+          paginatedBooks={library.paginatedBooks}
           librarySearchTerm={library.librarySearchTerm}
           readFilter={library.readFilter}
+          currentPage={library.currentPage}
+          totalPages={library.totalPages}
           setLibrarySearchTerm={library.setLibrarySearchTerm}
           setReadFilter={library.setReadFilter}
           toggleReadStatus={library.toggleReadStatus}
           removeBook={library.removeBook}
           clearLibrary={library.clearLibrary}
+          goToNextPage={library.goToNextPage}
+          goToPreviousPage={library.goToPreviousPage}
         />
       </div>
     </main>

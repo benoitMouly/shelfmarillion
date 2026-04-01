@@ -5,16 +5,28 @@ import type { ReadFilter } from "../types/library-filter.type";
 import type { UseLibraryReturn } from "../types/use-library-return.type";
 import { normalizeString } from "../utils/normalize-string";
 
+const PAGE_SIZE = 10;
+
 export const useLibrary = (): UseLibraryReturn => {
   const [books, setBooks] = useState<LibraryBook[]>(getStoredLibrary); // appelé une seule fois au montage grâce à la référence, évite les re-renders infinis
-  const [librarySearchTerm, setLibrarySearchTerm] = useState("");
-  const [readFilter, setReadFilter] = useState<ReadFilter>("all");
+  const [librarySearchTerm, setLibrarySearchTermRaw] = useState("");
+  const [readFilter, setReadFilterRaw] = useState<ReadFilter>("all");
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     saveLibrary(books);
   }, [books]);
 
-  // TODO: attention aux re-renders, il faudrait peut-être optimiser en utilisant useCallback ou en déplaçant la logique d'ajout dans un reducer
+  const setLibrarySearchTerm = (value: string) => {
+    setLibrarySearchTermRaw(value);
+    setCurrentPage(1);
+  };
+
+  const setReadFilter = (value: ReadFilter) => {
+    setReadFilterRaw(value);
+    setCurrentPage(1);
+  };
+
   const addBook = (book: LibraryBook) => {
     const alreadyExists = books.some((existingBook) => existingBook.id === book.id);
 
@@ -42,6 +54,7 @@ export const useLibrary = (): UseLibraryReturn => {
 
   const clearLibrary = () => {
     setBooks([]);
+    setCurrentPage(1);
   };
 
   const filteredBooks = useMemo(() => {
@@ -64,16 +77,46 @@ export const useLibrary = (): UseLibraryReturn => {
     });
   }, [books, librarySearchTerm, readFilter]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredBooks.length / PAGE_SIZE));
+
+  /**
+   * Tranche de filteredBooks correspondant à la page courante.
+   * currentPage est borné à totalPages pour éviter une page fantôme
+   * si des suppressions réduisent le nombre total de pages.
+   */
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedBooks = useMemo(() => {
+    const start = (safePage - 1) * PAGE_SIZE;
+    return filteredBooks.slice(start, start + PAGE_SIZE);
+  }, [filteredBooks, safePage]);
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage((p) => p + 1);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage((p) => p - 1);
+    }
+  };
+
   return {
     books,
     filteredBooks,
+    paginatedBooks,
     librarySearchTerm,
     readFilter,
+    currentPage: safePage,
+    totalPages,
     addBook,
     removeBook,
     toggleReadStatus,
     setLibrarySearchTerm,
     setReadFilter,
     clearLibrary,
+    goToNextPage,
+    goToPreviousPage,
   };
 };

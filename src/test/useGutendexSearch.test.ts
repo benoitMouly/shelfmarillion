@@ -106,10 +106,12 @@ describe("useGutendexSearch", () => {
       await result.current.searchBooks();
     });
 
-    expect(gutendexService.searchGutendexBooks).toHaveBeenCalledWith({
-      query: "frankenstein",
-      page: 1,
-    });
+    expect(gutendexService.searchGutendexBooks).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: "frankenstein",
+        page: 1,
+      }),
+    );
     expect(result.current.results).toEqual(page1Response.results);
     expect(result.current.currentPage).toBe(1);
     expect(result.current.hasNextPage).toBe(true);
@@ -183,14 +185,12 @@ describe("useGutendexSearch", () => {
       await result.current.goToNextPage();
     });
 
-    expect(searchSpy).toHaveBeenNthCalledWith(1, {
-      query: "horror",
-      page: 1,
-    });
-    expect(searchSpy).toHaveBeenNthCalledWith(2, {
-      query: "horror",
-      page: 2,
-    });
+    expect(searchSpy).toHaveBeenNthCalledWith(1,
+      expect.objectContaining({ query: "horror", page: 1 }),
+    );
+    expect(searchSpy).toHaveBeenNthCalledWith(2,
+      expect.objectContaining({ query: "horror", page: 2 }),
+    );
     expect(result.current.results).toEqual(page2Response.results);
     expect(result.current.currentPage).toBe(2);
     expect(result.current.hasNextPage).toBe(false);
@@ -222,10 +222,9 @@ describe("useGutendexSearch", () => {
       await result.current.goToPreviousPage();
     });
 
-    expect(searchSpy).toHaveBeenNthCalledWith(3, {
-      query: "horror",
-      page: 1,
-    });
+    expect(searchSpy).toHaveBeenNthCalledWith(3,
+      expect.objectContaining({ query: "horror", page: 1 }),
+    );
     expect(result.current.results).toEqual(page1Response.results);
     expect(result.current.currentPage).toBe(1);
   });

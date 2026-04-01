@@ -186,4 +186,159 @@ describe("useLibrary", () => {
     expect(result.current.books).toEqual([]);
     expect(result.current.filteredBooks).toEqual([]);
   });
+
+  // ─── Pagination ────────────────────────────────────────────────────────────
+
+  /** Génère n livres distincts pour tester la pagination. */
+  const makeBooks = (count: number): LibraryBook[] =>
+    Array.from({ length: count }, (_, i) => ({
+      id: i + 1,
+      title: `Book ${i + 1}`,
+      authors: ["Author"],
+      coverUrl: null,
+      languages: ["en"],
+      subjects: [],
+      bookshelves: [],
+      downloadCount: 0,
+      isRead: false,
+      addedAt: new Date().toISOString(),
+    }));
+
+  it("should start on page 1 with totalPages = 1 when library has fewer books than PAGE_SIZE", () => {
+    vi.spyOn(libraryStorage, "getStoredLibrary").mockReturnValue(initialBooks);
+    vi.spyOn(libraryStorage, "saveLibrary").mockImplementation(() => {});
+
+    const { result } = renderHook(() => useLibrary());
+
+    expect(result.current.currentPage).toBe(1);
+    expect(result.current.totalPages).toBe(1);
+    expect(result.current.paginatedBooks).toEqual(initialBooks);
+  });
+
+  it("should split books across multiple pages", () => {
+    const books = makeBooks(25);
+    vi.spyOn(libraryStorage, "getStoredLibrary").mockReturnValue(books);
+    vi.spyOn(libraryStorage, "saveLibrary").mockImplementation(() => {});
+
+    const { result } = renderHook(() => useLibrary());
+
+    // PAGE_SIZE = 10 → 3 pages pour 25 livres
+    expect(result.current.totalPages).toBe(3);
+    expect(result.current.paginatedBooks).toHaveLength(10);
+    expect(result.current.paginatedBooks[0].id).toBe(1);
+  });
+
+  it("should navigate to the next page", () => {
+    const books = makeBooks(25);
+    vi.spyOn(libraryStorage, "getStoredLibrary").mockReturnValue(books);
+    vi.spyOn(libraryStorage, "saveLibrary").mockImplementation(() => {});
+
+    const { result } = renderHook(() => useLibrary());
+
+    act(() => {
+      result.current.goToNextPage();
+    });
+
+    expect(result.current.currentPage).toBe(2);
+    expect(result.current.paginatedBooks[0].id).toBe(11);
+  });
+
+  it("should navigate to the previous page", () => {
+    const books = makeBooks(25);
+    vi.spyOn(libraryStorage, "getStoredLibrary").mockReturnValue(books);
+    vi.spyOn(libraryStorage, "saveLibrary").mockImplementation(() => {});
+
+    const { result } = renderHook(() => useLibrary());
+
+    act(() => { result.current.goToNextPage(); });
+    act(() => { result.current.goToPreviousPage(); });
+
+    expect(result.current.currentPage).toBe(1);
+  });
+
+  it("should not go below page 1", () => {
+    vi.spyOn(libraryStorage, "getStoredLibrary").mockReturnValue(initialBooks);
+    vi.spyOn(libraryStorage, "saveLibrary").mockImplementation(() => {});
+
+    const { result } = renderHook(() => useLibrary());
+
+    act(() => { result.current.goToPreviousPage(); });
+
+    expect(result.current.currentPage).toBe(1);
+  });
+
+  it("should not go beyond the last page", () => {
+    const books = makeBooks(10);
+    vi.spyOn(libraryStorage, "getStoredLibrary").mockReturnValue(books);
+    vi.spyOn(libraryStorage, "saveLibrary").mockImplementation(() => {});
+
+    const { result } = renderHook(() => useLibrary());
+
+    // 10 livres = exactement 1 page → goToNextPage ne doit rien faire
+    act(() => { result.current.goToNextPage(); });
+
+    expect(result.current.currentPage).toBe(1);
+    expect(result.current.totalPages).toBe(1);
+  });
+
+  it("should reset to page 1 when search term changes", () => {
+    const books = makeBooks(25);
+    vi.spyOn(libraryStorage, "getStoredLibrary").mockReturnValue(books);
+    vi.spyOn(libraryStorage, "saveLibrary").mockImplementation(() => {});
+
+    const { result } = renderHook(() => useLibrary());
+
+    act(() => { result.current.goToNextPage(); });
+    expect(result.current.currentPage).toBe(2);
+
+    act(() => { result.current.setLibrarySearchTerm("Book 1"); });
+
+    expect(result.current.currentPage).toBe(1);
+  });
+
+  it("should reset to page 1 when read filter changes", () => {
+    const books = makeBooks(25);
+    vi.spyOn(libraryStorage, "getStoredLibrary").mockReturnValue(books);
+    vi.spyOn(libraryStorage, "saveLibrary").mockImplementation(() => {});
+
+    const { result } = renderHook(() => useLibrary());
+
+    act(() => { result.current.goToNextPage(); });
+    expect(result.current.currentPage).toBe(2);
+
+    act(() => { result.current.setReadFilter("read"); });
+
+    expect(result.current.currentPage).toBe(1);
+  });
+
+  it("should reset to page 1 and empty books when clearing library", () => {
+    const books = makeBooks(25);
+    vi.spyOn(libraryStorage, "getStoredLibrary").mockReturnValue(books);
+    vi.spyOn(libraryStorage, "saveLibrary").mockImplementation(() => {});
+
+    const { result } = renderHook(() => useLibrary());
+
+    act(() => { result.current.goToNextPage(); });
+
+    act(() => { result.current.clearLibrary(); });
+
+    expect(result.current.currentPage).toBe(1);
+    expect(result.current.paginatedBooks).toEqual([]);
+    expect(result.current.totalPages).toBe(1);
+  });
+
+  it("last page shows remaining books when count is not a multiple of PAGE_SIZE", () => {
+    const books = makeBooks(22); // 3 pages : 10 + 10 + 2
+    vi.spyOn(libraryStorage, "getStoredLibrary").mockReturnValue(books);
+    vi.spyOn(libraryStorage, "saveLibrary").mockImplementation(() => {});
+
+    const { result } = renderHook(() => useLibrary());
+
+    act(() => { result.current.goToNextPage(); });
+    act(() => { result.current.goToNextPage(); });
+
+    expect(result.current.currentPage).toBe(3);
+    expect(result.current.paginatedBooks).toHaveLength(2);
+    expect(result.current.paginatedBooks[0].id).toBe(21);
+  });
 });

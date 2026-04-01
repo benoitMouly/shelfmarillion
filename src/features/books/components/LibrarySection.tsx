@@ -1,33 +1,28 @@
 import { SectionHeader } from "../../../components/SectionHeader";
-import type { LibraryBook } from "../types/library-book.type";
+import type { LibrarySectionProps } from "../types/library-section-props.type";
 import type { ReadFilter } from "../types/library-filter.type";
-
-type LibrarySectionProps = {
-  books: LibraryBook[];
-  filteredBooks: LibraryBook[];
-  librarySearchTerm: string;
-  readFilter: ReadFilter;
-  setLibrarySearchTerm: (value: string) => void;
-  setReadFilter: (value: ReadFilter) => void;
-  toggleReadStatus: (bookId: number) => void;
-  removeBook: (bookId: number) => void;
-  clearLibrary: () => void;
-};
 
 export const LibrarySection = ({
   books,
   filteredBooks,
+  paginatedBooks,
   librarySearchTerm,
   readFilter,
+  currentPage,
+  totalPages,
   setLibrarySearchTerm,
   setReadFilter,
   toggleReadStatus,
   removeBook,
   clearLibrary,
+  goToNextPage,
+  goToPreviousPage,
 }: LibrarySectionProps) => {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    // aria-labelledby : associe la section à son h2 pour la navigation par landmarks (WCAG 1.3.1)
+    <section aria-labelledby="library-section-title" className="rounded-card border border-border-default bg-surface-card p-6 shadow-card">
       <SectionHeader
+        titleId="library-section-title"
         title="My library"
         subtitle={`${books.length} book${books.length > 1 ? "s" : ""} in your library`}
       >
@@ -35,7 +30,7 @@ export const LibrarySection = ({
           type="button"
           onClick={clearLibrary}
           disabled={books.length === 0}
-          className="rounded-xl border border-red-200 px-4 py-2 text-sm text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-input border border-danger-200 px-4 py-2 text-sm text-danger-700 transition hover:bg-danger-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Clear library
         </button>
@@ -45,7 +40,7 @@ export const LibrarySection = ({
         <div>
           <label
             htmlFor="library-search"
-            className="mb-1 block text-sm font-medium text-slate-700"
+            className="mb-1 block text-sm font-medium text-text-subtle"
           >
             Search in my library
           </label>
@@ -55,14 +50,14 @@ export const LibrarySection = ({
             value={librarySearchTerm}
             onChange={(event) => setLibrarySearchTerm(event.target.value)}
             placeholder="Search by title or author"
-            className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none transition focus:border-slate-500"
+            className="w-full rounded-input border border-border-input px-4 py-2 text-sm outline-none transition focus:border-border-focus"
           />
         </div>
 
         <div>
           <label
             htmlFor="read-filter"
-            className="mb-1 block text-sm font-medium text-slate-700"
+            className="mb-1 block text-sm font-medium text-text-subtle"
           >
             Status
           </label>
@@ -70,7 +65,7 @@ export const LibrarySection = ({
             id="read-filter"
             value={readFilter}
             onChange={(event) => setReadFilter(event.target.value as ReadFilter)}
-            className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none transition focus:border-slate-500"
+            className="w-full rounded-input border border-border-input px-4 py-2 text-sm outline-none transition focus:border-border-focus"
           >
             <option value="all">All</option>
             <option value="read">Read</option>
@@ -80,25 +75,37 @@ export const LibrarySection = ({
       </div>
 
       {books.length === 0 ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-text-muted">
           Your library is empty. Add books from Gutendex.
         </p>
       ) : null}
 
       {books.length > 0 && filteredBooks.length === 0 ? (
-        <p className="text-sm text-slate-500">
+        // role="status" : annonce poliment qu'aucun livre ne correspond aux critères (WCAG 4.1.3)
+        <p className="text-sm text-text-muted" role="status" aria-atomic="true">
           No books match your current search or filter.
         </p>
       ) : null}
 
+      {/* sr-only + aria-live : annonce discrètement le nombre de résultats filtrés au lecteur
+          d'écran quand la recherche ou le filtre change, sans perturber la navigation (WCAG 4.1.3) */}
+      {books.length > 0 ? (
+        <p className="sr-only" aria-live="polite" aria-atomic="true">
+          {filteredBooks.length === 0
+            ? "No books match your current search or filter."
+            : `${filteredBooks.length} book${filteredBooks.length > 1 ? "s" : ""} displayed.`}
+        </p>
+      ) : null}
+
       {filteredBooks.length > 0 ? (
-        <ul className="grid gap-4">
-          {filteredBooks.map((book) => (
+        <div className="space-y-4">
+          <ul className="grid gap-4">
+            {paginatedBooks.map((book) => (
             <li
               key={book.id}
-              className="flex flex-col gap-4 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-start"
+              className="flex flex-col gap-4 rounded-input border border-border-default p-4 sm:flex-row sm:items-start"
             >
-              <div className="h-32 w-24 shrink-0 overflow-hidden rounded-md bg-slate-100">
+              <div className="h-32 w-24 shrink-0 overflow-hidden rounded-md bg-surface-muted">
                 {book.coverUrl ? (
                   <img
                     src={book.coverUrl}
@@ -106,7 +113,7 @@ export const LibrarySection = ({
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">
+                  <div aria-hidden="true" className="flex h-full w-full items-center justify-center text-xs text-text-muted">
                     No cover
                   </div>
                 )}
@@ -114,15 +121,15 @@ export const LibrarySection = ({
 
               <div className="min-w-0 flex-1 space-y-2">
                 <div>
-                  <h3 className="font-semibold text-slate-900">{book.title}</h3>
-                  <p className="text-sm text-slate-600">
+                  <h3 className="font-semibold text-text-heading">{book.title}</h3>
+                  <p className="text-sm text-text-body">
                     {book.authors.length > 0
                       ? book.authors.join(", ")
                       : "Unknown author"}
                   </p>
                 </div>
 
-                <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+                <div className="flex flex-wrap gap-2 text-xs text-text-subtle">
                   <span>Status: {book.isRead ? "Read" : "Unread"}</span>
                   <span>Languages: {book.languages.join(", ") || "N/A"}</span>
                   <span>Downloads: {book.downloadCount}</span>
@@ -133,7 +140,8 @@ export const LibrarySection = ({
                 <button
                   type="button"
                   onClick={() => toggleReadStatus(book.id)}
-                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm transition hover:bg-slate-100"
+                  aria-label={`Mark "${book.title}" as ${book.isRead ? "unread" : "read"}`}
+                  className="rounded-input border border-border-default px-4 py-2 text-sm transition hover:bg-surface-muted"
                 >
                   Mark as {book.isRead ? "unread" : "read"}
                 </button>
@@ -141,14 +149,42 @@ export const LibrarySection = ({
                 <button
                   type="button"
                   onClick={() => removeBook(book.id)}
-                  className="rounded-xl border border-red-200 px-4 py-2 text-sm text-red-700 transition hover:bg-red-50"
+                  aria-label={`Remove "${book.title}" from library`}
+                  className="rounded-input border border-danger-200 px-4 py-2 text-sm text-danger-700 transition hover:bg-danger-50"
                 >
                   Remove
                 </button>
               </div>
             </li>
           ))}
-        </ul>
+          </ul>
+
+          {totalPages > 1 ? (
+            <nav aria-label="Library pagination" className="flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={goToPreviousPage}
+                disabled={currentPage <= 1}
+                className="rounded-input border border-border-default px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Previous
+              </button>
+
+              <span className="text-sm text-text-body" aria-live="polite" aria-atomic="true">
+                Page {currentPage} / {totalPages}
+              </span>
+
+              <button
+                type="button"
+                onClick={goToNextPage}
+                disabled={currentPage >= totalPages}
+                className="rounded-input border border-border-default px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+              </button>
+            </nav>
+          ) : null}
+        </div>
       ) : null}
     </section>
   );

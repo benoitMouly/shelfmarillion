@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { searchGutendexBooks } from "../api/gutendex.service";
 import type { UseGutendexSearchReturn } from "../types/use-gutendex-search-return.type";
 import type { GutendexBook } from "../schemas/gutendex.schema";
@@ -12,6 +12,12 @@ export const useGutendexSearch = (): UseGutendexSearchReturn => {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [hasPreviousPage, setHasPreviousPage] = useState(false);
+
+  /**
+   * Permet d'annuler un appel réseau obsolète si l'utilisateur
+   * lance une nouvelle recherche avant que la précédente n'ait répondu.
+   */
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const searchBooks = useCallback(
     async (params?: { page?: number; term?: string }) => {
@@ -28,6 +34,11 @@ export const useGutendexSearch = (): UseGutendexSearchReturn => {
         return;
       }
 
+      // Annule la requête précédente si elle est encore en vol
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       setIsLoading(true);
       setErrorMessage(null);
 
@@ -35,6 +46,7 @@ export const useGutendexSearch = (): UseGutendexSearchReturn => {
         const response = await searchGutendexBooks({
           query: trimmedTerm,
           page,
+          signal: controller.signal,
         });
 
         setResults(response.results);
@@ -43,13 +55,19 @@ export const useGutendexSearch = (): UseGutendexSearchReturn => {
         setHasPreviousPage(Boolean(response.previous));
         setHasSearched(true);
       } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
         console.error("Failed to search books in Gutendex", error);
         setResults([]);
         setHasNextPage(false);
         setHasPreviousPage(false);
         setErrorMessage("An error occurred while searching books.");
       } finally {
-        setIsLoading(false);
+        if (abortControllerRef.current === controller) {
+          setIsLoading(false);
+        }
       }
     },
     [apiSearchTerm],
