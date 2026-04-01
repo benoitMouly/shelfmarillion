@@ -1,0 +1,1 @@
+export const LIBRARY_STORAGE_KEY = "my-library-books"; // persistent key for localStorage
