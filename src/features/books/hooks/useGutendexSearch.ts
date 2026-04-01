@@ -7,6 +7,7 @@ export const useGutendexSearch = (): UseGutendexSearchReturn => {
   const [apiSearchTerm, setApiSearchTerm] = useState("");
   const [results, setResults] = useState<GutendexBook[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
@@ -40,6 +41,7 @@ export const useGutendexSearch = (): UseGutendexSearchReturn => {
         setCurrentPage(page);
         setHasNextPage(Boolean(response.next));
         setHasPreviousPage(Boolean(response.previous));
+        setHasSearched(true);
       } catch (error) {
         console.error("Failed to search books in Gutendex", error);
         setResults([]);
@@ -76,12 +78,14 @@ export const useGutendexSearch = (): UseGutendexSearchReturn => {
     setHasNextPage(false);
     setHasPreviousPage(false);
     setErrorMessage(null);
+    setHasSearched(false);
   }, []);
 
   return {
     apiSearchTerm,
     results,
     isLoading,
+    hasSearched,
     errorMessage,
     currentPage,
     hasNextPage,

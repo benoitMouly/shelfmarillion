@@ -4,6 +4,7 @@ export type UseGutendexSearchReturn = {
   apiSearchTerm: string;
   results: GutendexBook[];
   isLoading: boolean;
+  hasSearched: boolean;
   errorMessage: string | null;
   currentPage: number;
   hasNextPage: boolean;

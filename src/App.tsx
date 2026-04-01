@@ -1,121 +1,58 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { AppHeader } from "./components/AppHeader";
+import { GutendexSearchSection } from "./features/books/components/GutendexSearchSection";
+import { LibrarySection } from "./features/books/components/LibrarySection";
+import { useGutendexSearch } from "./features/books/hooks/useGutendexSearch";
+import { useLibrary } from "./features/books/hooks/useLibrary";
+import { mapGutendexBookToLibraryBook } from "./features/books/utils/map-gutendex-book";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const library = useLibrary();
+  const gutendexSearch = useGutendexSearch();
+
+  const handleAddBook = (gutendexBook: Parameters<typeof mapGutendexBookToLibraryBook>[0]) => {
+    const mappedBook = mapGutendexBookToLibraryBook(gutendexBook);
+    return library.addBook(mappedBook);
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get starteds</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <main className="min-h-screen bg-slate-50 px-4 py-8">
+      <div className="mx-auto flex max-w-6xl flex-col gap-8">
+        <AppHeader
+          title="My Library"
+          subtitle="Search books from Gutendex and manage your local library."
+        />
 
-      <div className="ticks"></div>
+        <GutendexSearchSection
+          apiSearchTerm={gutendexSearch.apiSearchTerm}
+          results={gutendexSearch.results}
+          isLoading={gutendexSearch.isLoading}
+          hasSearched={gutendexSearch.hasSearched}
+          errorMessage={gutendexSearch.errorMessage}
+          currentPage={gutendexSearch.currentPage}
+          hasNextPage={gutendexSearch.hasNextPage}
+          hasPreviousPage={gutendexSearch.hasPreviousPage}
+          setApiSearchTerm={gutendexSearch.setApiSearchTerm}
+          searchBooks={gutendexSearch.searchBooks}
+          goToNextPage={gutendexSearch.goToNextPage}
+          goToPreviousPage={gutendexSearch.goToPreviousPage}
+          onAddBook={handleAddBook}
+          libraryBookIds={new Set(library.books.map((book) => book.id))}
+        />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        <LibrarySection
+          books={library.books}
+          filteredBooks={library.filteredBooks}
+          librarySearchTerm={library.librarySearchTerm}
+          readFilter={library.readFilter}
+          setLibrarySearchTerm={library.setLibrarySearchTerm}
+          setReadFilter={library.setReadFilter}
+          toggleReadStatus={library.toggleReadStatus}
+          removeBook={library.removeBook}
+          clearLibrary={library.clearLibrary}
+        />
+      </div>
+    </main>
+  );
 }
 
-export default App
+export default App;
