@@ -4,7 +4,7 @@ Exercice technique réalisé dans le cadre d'une demande de la direction d'attin
 
 ---
 
-## Objectif
+## Goals
 
 Créer une application React de gestion d'une bibliothèque de livres personnelle :
 
@@ -34,7 +34,7 @@ mon organisation des TYPES est subjective j'aurai pu les mettre par dossier
 plutot que des les regrouper tous entre eux
 ---
 
-## Installation
+## Initialization
 
 ```bash
 git clone https://github.com/benoitMouly/shelfmarillion.git
@@ -48,7 +48,7 @@ L'application tourne sur `http://localhost:5173` par défaut.
 
 ---
 
-## Commandes disponibles
+## Commands
 
 ```bash
 npm run dev            # Serveur de développement
@@ -62,7 +62,7 @@ npm run format         # Formatage Prettier
 npm run format:check   # Vérifie le formatage sans modifier
 ```
 
-## Améliorations
+## Improvements
 
 - Internationalisation (i18n)
 - Refacto des conditions dans les composants
@@ -72,4 +72,10 @@ npm run format:check   # Vérifie le formatage sans modifier
 - Test end2end avec des scénarios type playwright ou cypress
 - Amélioration des tri de livres dans la library
 
--> Enjoy Maxime et Julien :) <-
+
+---
+
+## Requirements
+
+Node "> v19"
+npm "> 9"

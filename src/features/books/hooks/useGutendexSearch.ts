@@ -4,6 +4,8 @@ import type { UseGutendexSearchReturn } from "../types/use-gutendex-search-retur
 import type { GutendexBook } from "../schemas/gutendex.schema";
 
 export const useGutendexSearch = (): UseGutendexSearchReturn => {
+
+  // TODO: refactor avec red<ucer pour éviter tous ces useState imbriqués et les dépendances dans les callbacks
   const [apiSearchTerm, setApiSearchTerm] = useState("");
   const [results, setResults] = useState<GutendexBook[]>([]);
   const [isLoading, setIsLoading] = useState(false);

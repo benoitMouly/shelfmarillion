@@ -5,9 +5,10 @@ import type { ReadFilter } from "../types/library-filter.type";
 import type { UseLibraryReturn } from "../types/use-library-return.type";
 import { normalizeString } from "../utils/normalize-string";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = import.meta.env.VITE_PAGE_SIZE;
 
 export const useLibrary = (): UseLibraryReturn => {
+  // TODO: refactor avec reducer pour éviter tous ces useState imbriqués et les dépendances dans les callbacks
   const [books, setBooks] = useState<LibraryBook[]>(getStoredLibrary); // appelé une seule fois au montage grâce à la référence, évite les re-renders infinis
   const [librarySearchTerm, setLibrarySearchTermRaw] = useState("");
   const [readFilter, setReadFilterRaw] = useState<ReadFilter>("all");

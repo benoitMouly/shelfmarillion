@@ -1,23 +1,26 @@
 import { SectionHeader } from "../../../components/SectionHeader";
-import type { LibrarySectionProps } from "../types/library-section-props.type";
+import { useLibraryContext } from "../../../contexts/my-books-provider";
 import type { ReadFilter } from "../types/library-filter.type";
 
-export const LibrarySection = ({
-  books,
-  filteredBooks,
-  paginatedBooks,
-  librarySearchTerm,
-  readFilter,
-  currentPage,
-  totalPages,
-  setLibrarySearchTerm,
-  setReadFilter,
-  toggleReadStatus,
-  removeBook,
-  clearLibrary,
-  goToNextPage,
-  goToPreviousPage,
-}: LibrarySectionProps) => {
+export const LibrarySection = () => {
+  // Accès direct à toutes les données et actions de la bibliothèque
+  // via le contexte, sans aucune prop transmise par le parent
+  const {
+    books,
+    filteredBooks,
+    paginatedBooks,
+    librarySearchTerm,
+    readFilter,
+    currentPage,
+    totalPages,
+    setLibrarySearchTerm,
+    setReadFilter,
+    toggleReadStatus,
+    removeBook,
+    clearLibrary,
+    goToNextPage,
+    goToPreviousPage,
+  } = useLibraryContext();
   return (
     // aria-labelledby : associe la section à son h2 pour la navigation par landmarks (WCAG 1.3.1)
     <section aria-labelledby="library-section-title" className="rounded-card border border-border-default bg-surface-card p-6 shadow-card">

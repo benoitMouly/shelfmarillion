@@ -2,25 +2,34 @@ import { useState } from "react";
 import type { SubmitEvent } from "react";
 import { BookCardSkeleton } from "../../../components/BookCardSkeleton";
 import { SectionHeader } from "../../../components/SectionHeader";
+import { useGutendexSearchContext } from "../../../contexts/fetched-books.provider";
+import { useLibraryContext } from "../../../contexts/my-books-provider";
 import type { GutendexBook } from "../schemas/gutendex.schema";
-import type { GutendexSearchSectionProps } from "../types/gutendex-search-section-props.type";
+import { mapGutendexBookToLibraryBook } from "../utils/map-gutendex-book";
 
-export const GutendexSearchSection = ({
-  apiSearchTerm,
-  results,
-  isLoading,
-  hasSearched,
-  errorMessage,
-  currentPage,
-  hasNextPage,
-  hasPreviousPage,
-  setApiSearchTerm,
-  searchBooks,
-  goToNextPage,
-  goToPreviousPage,
-  onAddBook,
-  libraryBookIds,
-}: GutendexSearchSectionProps) => {
+export const GutendexSearchSection = () => {
+  // Accès direct aux données de recherche via le contexte,
+  // plus besoin de recevoir mille props depuis le parent
+  const {
+    apiSearchTerm,
+    results,
+    isLoading,
+    hasSearched,
+    errorMessage,
+    currentPage,
+    hasNextPage,
+    hasPreviousPage,
+    setApiSearchTerm,
+    searchBooks,
+    goToNextPage,
+    goToPreviousPage,
+  } = useGutendexSearchContext();
+
+  // Accès au contexte de la bibliothèque pour :
+  // - savoir si un livre est déjà ajouté (libraryBookIds)
+  // - ajouter de nouveaux livres (addBook)
+  const { addBook, books } = useLibraryContext();
+  const libraryBookIds = new Set(books.map((book) => book.id));
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
@@ -30,7 +39,8 @@ export const GutendexSearchSection = ({
   };
 
   const handleAddBook = (book: GutendexBook) => {
-    const result = onAddBook(book);
+    const mappedBook = mapGutendexBookToLibraryBook(book);
+    const result = addBook(mappedBook);
 
     if (!result.success) {
       setFeedbackMessage("This book is already in your library.");
