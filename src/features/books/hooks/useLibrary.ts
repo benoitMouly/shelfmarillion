@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import { getStoredLibrary, saveLibrary } from "../storage/library.storage";
 import type { LibraryBook } from "../types/library-book.type";
 import type { ReadFilter } from "../types/library-filter.type";
@@ -7,9 +7,35 @@ import { normalizeString } from "../utils/normalize-string";
 
 const PAGE_SIZE = import.meta.env.VITE_PAGE_SIZE;
 
+type BooksAction =
+  | { type: "ADD"; book: LibraryBook }
+  | { type: "REMOVE"; bookId: number }
+  | { type: "TOGGLE_READ"; bookId: number }
+  | { type: "CLEAR" };
+
+const booksReducer = (state: LibraryBook[], action: BooksAction): LibraryBook[] => {
+  switch (action.type) {
+    case "ADD":
+      return [action.book, ...state];
+
+    case "REMOVE":
+      return state.filter((book) => book.id !== action.bookId);
+
+    case "TOGGLE_READ":
+      return state.map((book) =>
+        book.id === action.bookId ? { ...book, isRead: !book.isRead } : book,
+      );
+
+    case "CLEAR":
+      return [];
+  }
+};
+
 export const useLibrary = (): UseLibraryReturn => {
-  // TODO: refactor avec reducer pour éviter tous ces useState imbriqués et les dépendances dans les callbacks
-  const [books, setBooks] = useState<LibraryBook[]>(getStoredLibrary); // appelé une seule fois au montage grâce à la référence, évite les re-renders infinis
+  // getStoredLibrary est passé en lazy initializer pour être appelé quune seule fois au mount
+  const [books, dispatch] = useReducer(booksReducer, null, getStoredLibrary);
+
+  // Ces 3 states restent en useState car valurs ui simples, avec un unique setter chacune, sans lien de transition entre elle
   const [librarySearchTerm, setLibrarySearchTermRaw] = useState("");
   const [readFilter, setReadFilterRaw] = useState<ReadFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -35,26 +61,20 @@ export const useLibrary = (): UseLibraryReturn => {
       return { success: false as const, reason: "duplicate" as const };
     }
 
-    setBooks((previousBooks) => [book, ...previousBooks]);
+    dispatch({ type: "ADD", book });
     return { success: true as const };
   };
 
   const removeBook = (bookId: number) => {
-    setBooks((previousBooks) =>
-      previousBooks.filter((book) => book.id !== bookId),
-    );
+    dispatch({ type: "REMOVE", bookId });
   };
 
   const toggleReadStatus = (bookId: number) => {
-    setBooks((previousBooks) =>
-      previousBooks.map((book) =>
-        book.id === bookId ? { ...book, isRead: !book.isRead } : book,
-      ),
-    );
+    dispatch({ type: "TOGGLE_READ", bookId });
   };
 
   const clearLibrary = () => {
-    setBooks([]);
+    dispatch({ type: "CLEAR" });
     setCurrentPage(1);
   };
 

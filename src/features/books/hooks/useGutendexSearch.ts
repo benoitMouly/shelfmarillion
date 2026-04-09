@@ -1,19 +1,89 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useReducer, useRef, useState } from "react";
 import { searchGutendexBooks } from "../api/gutendex.service";
 import type { UseGutendexSearchReturn } from "../types/use-gutendex-search-return.type";
 import type { GutendexBook } from "../schemas/gutendex.schema";
 
-export const useGutendexSearch = (): UseGutendexSearchReturn => {
+type SearchState = {
+  results: GutendexBook[];
+  isLoading: boolean;
+  hasSearched: boolean;
+  errorMessage: string | null;
+  currentPage: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+};
 
-  // TODO: refactor avec red<ucer pour éviter tous ces useState imbriqués et les dépendances dans les callbacks
+type SearchAction =
+  | { type: "SEARCH_START" }
+  | {
+      type: "SEARCH_SUCCESS";
+      payload: {
+        results: GutendexBook[];
+        page: number;
+        hasNext: boolean;
+        hasPrevious: boolean;
+      };
+    }
+  | { type: "SEARCH_ERROR"; payload: string }
+  | { type: "CLEAR_RESULTS" }
+  | { type: "RESET" };
+
+const initialSearchState: SearchState = {
+  results: [],
+  isLoading: false,
+  hasSearched: false,
+  errorMessage: null,
+  currentPage: 1,
+  hasNextPage: false,
+  hasPreviousPage: false,
+};
+
+const searchReducer = (state: SearchState, action: SearchAction): SearchState => {
+  switch (action.type) {
+    case "SEARCH_START":
+      return { ...state, isLoading: true, errorMessage: null };
+
+    case "SEARCH_SUCCESS":
+    return {
+      ...state,
+      results: action.payload.results,
+      currentPage: action.payload.page,
+      hasNextPage: action.payload.hasNext,
+      hasPreviousPage: action.payload.hasPrevious,
+      hasSearched: true,
+      isLoading: false,
+    };
+
+    case "SEARCH_ERROR":
+      return {
+        ...state,
+        results: [],
+        hasNextPage: false,
+        hasPreviousPage: false,
+        errorMessage: action.payload,
+        isLoading: false,
+      };
+
+    case "CLEAR_RESULTS":
+      return {
+        ...state,
+        results: [],
+        currentPage: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+        errorMessage: null,
+      };
+
+    case "RESET":
+      return initialSearchState;
+  }
+};
+
+export const useGutendexSearch = (): UseGutendexSearchReturn => {
+  // apiSearchTerm reste un useState car c'est un champ de saisie indépendant : l'utilisateur le met à jour lettre par lettre,
+  // et il n'a pas de lien de transition avec les autres states.
   const [apiSearchTerm, setApiSearchTerm] = useState("");
-  const [results, setResults] = useState<GutendexBook[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasNextPage, setHasNextPage] = useState(false);
-  const [hasPreviousPage, setHasPreviousPage] = useState(false);
+  const [state, dispatch] = useReducer(searchReducer, initialSearchState);
 
   /**
    * Permet d'annuler un appel réseau obsolète si l'utilisateur
@@ -28,11 +98,7 @@ export const useGutendexSearch = (): UseGutendexSearchReturn => {
       const trimmedTerm = rawTerm.trim();
 
       if (!trimmedTerm) {
-        setResults([]);
-        setCurrentPage(1);
-        setHasNextPage(false);
-        setHasPreviousPage(false);
-        setErrorMessage(null);
+        dispatch({ type: "CLEAR_RESULTS" });
         return;
       }
 
@@ -41,8 +107,7 @@ export const useGutendexSearch = (): UseGutendexSearchReturn => {
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
-      setIsLoading(true);
-      setErrorMessage(null);
+      dispatch({ type: "SEARCH_START" });
 
       try {
         const response = await searchGutendexBooks({
@@ -51,65 +116,60 @@ export const useGutendexSearch = (): UseGutendexSearchReturn => {
           signal: controller.signal,
         });
 
-        setResults(response.results);
-        setCurrentPage(page);
-        setHasNextPage(Boolean(response.next));
-        setHasPreviousPage(Boolean(response.previous));
-        setHasSearched(true);
+        dispatch({
+          type: "SEARCH_SUCCESS",
+          payload: {
+            results: response.results,
+            page,
+            hasNext: Boolean(response.next),
+            hasPrevious: Boolean(response.previous),
+          },
+        });
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
         }
 
         console.error("Failed to search books in Gutendex", error);
-        setResults([]);
-        setHasNextPage(false);
-        setHasPreviousPage(false);
-        setErrorMessage("An error occurred while searching books.");
-      } finally {
-        if (abortControllerRef.current === controller) {
-          setIsLoading(false);
-        }
+        dispatch({
+          type: "SEARCH_ERROR",
+          payload: "An error occurred while searching books.",
+        });
       }
     },
     [apiSearchTerm],
   );
 
   const goToNextPage = useCallback(async () => {
-    if (!hasNextPage || isLoading) {
+    if (!state.hasNextPage || state.isLoading) {
       return;
     }
 
-    await searchBooks({ page: currentPage + 1 });
-  }, [currentPage, hasNextPage, isLoading, searchBooks]);
+    await searchBooks({ page: state.currentPage + 1 });
+  }, [state.currentPage, state.hasNextPage, state.isLoading, searchBooks]);
 
   const goToPreviousPage = useCallback(async () => {
-    if (!hasPreviousPage || isLoading || currentPage <= 1) {
+    if (!state.hasPreviousPage || state.isLoading || state.currentPage <= 1) {
       return;
     }
 
-    await searchBooks({ page: currentPage - 1 });
-  }, [currentPage, hasPreviousPage, isLoading, searchBooks]);
+    await searchBooks({ page: state.currentPage - 1 });
+  }, [state.currentPage, state.hasPreviousPage, state.isLoading, searchBooks]);
 
   const resetSearch = useCallback(() => {
     setApiSearchTerm("");
-    setResults([]);
-    setCurrentPage(1);
-    setHasNextPage(false);
-    setHasPreviousPage(false);
-    setErrorMessage(null);
-    setHasSearched(false);
+    dispatch({ type: "RESET" });
   }, []);
 
   return {
     apiSearchTerm,
-    results,
-    isLoading,
-    hasSearched,
-    errorMessage,
-    currentPage,
-    hasNextPage,
-    hasPreviousPage,
+    results: state.results,
+    isLoading: state.isLoading,
+    hasSearched: state.hasSearched,
+    errorMessage: state.errorMessage,
+    currentPage: state.currentPage,
+    hasNextPage: state.hasNextPage,
+    hasPreviousPage: state.hasPreviousPage,
     setApiSearchTerm,
     searchBooks,
     goToNextPage,
