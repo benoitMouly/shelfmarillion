@@ -4,7 +4,6 @@ import type { SearchBooksParams } from "../types/search-books-params.type";
 const GUTENDEX_BASE_URL = import.meta.env.VITE_GUTENDEX_BASE_URL;
 const MAX_CACHE_SIZE = import.meta.env.VITE_MAX_CACHE_SIZE;
 
-console.log('gutendex url :', GUTENDEX_BASE_URL)
 
 export class GutendexApiError extends Error {
   constructor(message: string) {

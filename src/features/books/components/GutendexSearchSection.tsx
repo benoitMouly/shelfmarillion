@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { SubmitEvent } from "react";
 import { BookCardSkeleton } from "../../../components/BookCardSkeleton";
+import { Pagination } from "../../../components/Pagination";
 import { SectionHeader } from "../../../components/SectionHeader";
 import { useGutendexSearchContext } from "../../../contexts/fetched-books.provider";
 import { useLibraryContext } from "../../../contexts/my-books-provider";
@@ -17,12 +18,13 @@ export const GutendexSearchSection = () => {
     hasSearched,
     errorMessage,
     currentPage,
+    totalPages,
+    totalCount,
     hasNextPage,
     hasPreviousPage,
     setApiSearchTerm,
     searchBooks,
-    goToNextPage,
-    goToPreviousPage,
+    goToPage,
   } = useGutendexSearchContext();
 
   // Accès au contexte de la bibliothèque pour :
@@ -35,7 +37,7 @@ export const GutendexSearchSection = () => {
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFeedbackMessage(null);
-    await searchBooks({ page: 1 });
+    await searchBooks();
   };
 
   const handleAddBook = (book: GutendexBook) => {
@@ -187,35 +189,25 @@ export const GutendexSearchSection = () => {
             })}
           </ul>
 
+          <p className="text-sm text-text-subtle">
+            {totalCount} {totalCount > 1 ? "results" : "result"} found
+          </p>
+
           {/* aria-live="polite" + aria-atomic : annonce discrètement le numéro de page
               courant au lecteur d'écran après chaque changement de page (WCAG 4.1.3) */}
           <p className="sr-only" aria-live="polite" aria-atomic="true">
-            Page {currentPage}
+            Page {currentPage} of {totalPages}, {totalCount} {totalCount > 1 ? "results" : "result"}
           </p>
 
-          {/* nav + aria-label : identifie clairement la zone de pagination comme un landmark
-              de navigation distinct, consultable via raccourci clavier (WCAG 2.4.1) */}
-          <nav aria-label="Search results pagination" className="flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => void goToPreviousPage()}
-              disabled={!hasPreviousPage || isLoading}
-              className="rounded-input border border-border-default px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Previous
-            </button>
-
-            <span className="text-sm text-text-body">Page {currentPage}</span>
-
-            <button
-              type="button"
-              onClick={() => void goToNextPage()}
-              disabled={!hasNextPage || isLoading}
-              className="rounded-input border border-border-default px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Next
-            </button>
-          </nav>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            hasNextPage={hasNextPage}
+            hasPreviousPage={hasPreviousPage}
+            isLoading={isLoading}
+            onGoToPage={(page) => void goToPage(page)}
+            ariaLabel="Search results pagination"
+          />
         </div>
       ) : null}
     </section>

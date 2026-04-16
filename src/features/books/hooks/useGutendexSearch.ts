@@ -4,13 +4,12 @@ import type { UseGutendexSearchReturn } from "../types/use-gutendex-search-retur
 import type { GutendexBook } from "../schemas/gutendex.schema";
 
 type SearchState = {
-  results: GutendexBook[];
+  allResults: GutendexBook[];
+  totalCount: number;
+  nextApiPage: number | null;
   isLoading: boolean;
   hasSearched: boolean;
   errorMessage: string | null;
-  currentPage: number;
-  hasNextPage: boolean;
-  hasPreviousPage: boolean;
 };
 
 type SearchAction =
@@ -19,23 +18,23 @@ type SearchAction =
       type: "SEARCH_SUCCESS";
       payload: {
         results: GutendexBook[];
-        page: number;
-        hasNext: boolean;
-        hasPrevious: boolean;
+        totalCount: number;
+        nextApiPage: number | null;
       };
     }
   | { type: "SEARCH_ERROR"; payload: string }
   | { type: "CLEAR_RESULTS" }
   | { type: "RESET" };
 
+const DEFAULT_PAGE_SIZE = Number(import.meta.env.VITE_PAGE_SIZE);
+
 const initialSearchState: SearchState = {
-  results: [],
+  allResults: [],
+  totalCount: 0,
+  nextApiPage: null,
   isLoading: false,
   hasSearched: false,
   errorMessage: null,
-  currentPage: 1,
-  hasNextPage: false,
-  hasPreviousPage: false,
 };
 
 const searchReducer = (state: SearchState, action: SearchAction): SearchState => {
@@ -43,23 +42,23 @@ const searchReducer = (state: SearchState, action: SearchAction): SearchState =>
     case "SEARCH_START":
       return { ...state, isLoading: true, errorMessage: null };
 
+    // on ajoute les nouveaux résultats à la suite du buffer equi existe 
     case "SEARCH_SUCCESS":
-    return {
-      ...state,
-      results: action.payload.results,
-      currentPage: action.payload.page,
-      hasNextPage: action.payload.hasNext,
-      hasPreviousPage: action.payload.hasPrevious,
-      hasSearched: true,
-      isLoading: false,
-    };
+      return {
+        ...state,
+        allResults: [...state.allResults, ...action.payload.results],
+        totalCount: action.payload.totalCount,
+        nextApiPage: action.payload.nextApiPage,
+        hasSearched: true,
+        isLoading: false,
+      };
 
     case "SEARCH_ERROR":
       return {
         ...state,
-        results: [],
-        hasNextPage: false,
-        hasPreviousPage: false,
+        allResults: [],
+        totalCount: 0,
+        nextApiPage: null,
         errorMessage: action.payload,
         isLoading: false,
       };
@@ -67,10 +66,10 @@ const searchReducer = (state: SearchState, action: SearchAction): SearchState =>
     case "CLEAR_RESULTS":
       return {
         ...state,
-        results: [],
-        currentPage: 1,
-        hasNextPage: false,
-        hasPreviousPage: false,
+        allResults: [],
+        totalCount: 0,
+        nextApiPage: null,
+        hasSearched: false,
         errorMessage: null,
       };
 
@@ -80,98 +79,152 @@ const searchReducer = (state: SearchState, action: SearchAction): SearchState =>
 };
 
 export const useGutendexSearch = (): UseGutendexSearchReturn => {
-  // apiSearchTerm reste un useState car c'est un champ de saisie indépendant : l'utilisateur le met à jour lettre par lettre,
-  // et il n'a pas de lien de transition avec les autres states.
   const [apiSearchTerm, setApiSearchTerm] = useState("");
   const [state, dispatch] = useReducer(searchReducer, initialSearchState);
 
-  /**
-   * Permet d'annuler un appel réseau obsolète si l'utilisateur
-   * lance une nouvelle recherche avant que la précédente n'ait répondu.
-   */
+  const [displayPage, setDisplayPage] = useState(1);
+
   const abortControllerRef = useRef<AbortController | null>(null);
+  const currentQueryRef = useRef("");
+  const totalPages = state.totalCount > 0 ? Math.ceil(state.totalCount / DEFAULT_PAGE_SIZE) : 0;
+  const hasNextPage = displayPage < totalPages;
+  const hasPreviousPage = displayPage > 1;
 
-  const searchBooks = useCallback(
-    async (params?: { page?: number; term?: string }) => {
-      const page = params?.page ?? 1;
-      const rawTerm = params?.term ?? apiSearchTerm;
-      const trimmedTerm = rawTerm.trim();
+  const startIndex = (displayPage - 1) * DEFAULT_PAGE_SIZE;
+  const displayedResults = state.allResults.slice(startIndex, startIndex + DEFAULT_PAGE_SIZE);
 
-      if (!trimmedTerm) {
-        dispatch({ type: "CLEAR_RESULTS" });
-        return;
-      }
+  const searchBooks = useCallback(async () => {
+    const trimmedTerm = apiSearchTerm.trim();
 
-      // Annule la requête précédente si elle est encore en vol
-      abortControllerRef.current?.abort();
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
+    if (!trimmedTerm) {
+      dispatch({ type: "CLEAR_RESULTS" });
+      setDisplayPage(1);
+      return;
+    }
 
-      dispatch({ type: "SEARCH_START" });
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
-      try {
-        const response = await searchGutendexBooks({
-          query: trimmedTerm,
-          page,
-          signal: controller.signal,
-        });
+    currentQueryRef.current = trimmedTerm;
+    dispatch({ type: "CLEAR_RESULTS" });
+    dispatch({ type: "SEARCH_START" });
 
-        dispatch({
-          type: "SEARCH_SUCCESS",
-          payload: {
-            results: response.results,
-            page,
-            hasNext: Boolean(response.next),
-            hasPrevious: Boolean(response.previous),
-          },
-        });
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
+    try {
+      const response = await searchGutendexBooks({
+        query: trimmedTerm,
+        page: 1,
+        signal: controller.signal,
+      });
+
+      dispatch({
+        type: "SEARCH_SUCCESS",
+        payload: {
+          results: response.results,
+          totalCount: response.count,
+          nextApiPage: response.next ? 2 : null,
+        },
+      });
+      setDisplayPage(1);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+
+      console.error("Failed to search books in Gutendex", error);
+      dispatch({
+        type: "SEARCH_ERROR",
+        payload: "An error occurred while searching books.",
+      });
+    }
+  }, [apiSearchTerm]);
+
+  const goToPage = useCallback(
+    async (page: number) => {
+      if (state.isLoading || page < 1 || page > totalPages) return;
+
+      const neededItems = page * DEFAULT_PAGE_SIZE;
+
+      if (neededItems > state.allResults.length && state.nextApiPage !== null) {
+        abortControllerRef.current?.abort();
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
+        dispatch({ type: "SEARCH_START" });
+
+        try {
+          const newResults: GutendexBook[] = [];
+          let bufferLength = state.allResults.length;
+          let nextPage: number | null = state.nextApiPage;
+          let latestCount = state.totalCount;
+
+          while (neededItems > bufferLength && nextPage !== null) {
+            const response = await searchGutendexBooks({
+              query: currentQueryRef.current,
+              page: nextPage,
+              signal: controller.signal,
+            });
+
+            newResults.push(...response.results);
+            bufferLength += response.results.length;
+            latestCount = response.count;
+            nextPage = response.next ? nextPage + 1 : null;
+          }
+
+          dispatch({
+            type: "SEARCH_SUCCESS",
+            payload: {
+              results: newResults,
+              totalCount: latestCount,
+              nextApiPage: nextPage,
+            },
+          });
+        } catch (error) {
+          if (error instanceof DOMException) return;
+
+          console.error("Failed to load page", error);
+          dispatch({
+            type: "SEARCH_ERROR",
+            payload: "An error occurred while loading the page.",
+          });
           return;
         }
-
-        console.error("Failed to search books in Gutendex", error);
-        dispatch({
-          type: "SEARCH_ERROR",
-          payload: "An error occurred while searching books.",
-        });
       }
+
+      setDisplayPage(page);
     },
-    [apiSearchTerm],
+    [state.isLoading, state.allResults.length, state.nextApiPage, state.totalCount, totalPages],
   );
 
   const goToNextPage = useCallback(async () => {
-    if (!state.hasNextPage || state.isLoading) {
-      return;
-    }
-
-    await searchBooks({ page: state.currentPage + 1 });
-  }, [state.currentPage, state.hasNextPage, state.isLoading, searchBooks]);
+    if (!hasNextPage || state.isLoading) return;
+    await goToPage(displayPage + 1);
+  }, [hasNextPage, state.isLoading, goToPage, displayPage]);
 
   const goToPreviousPage = useCallback(async () => {
-    if (!state.hasPreviousPage || state.isLoading || state.currentPage <= 1) {
-      return;
-    }
-
-    await searchBooks({ page: state.currentPage - 1 });
-  }, [state.currentPage, state.hasPreviousPage, state.isLoading, searchBooks]);
+    if (!hasPreviousPage || state.isLoading) return;
+    await goToPage(displayPage - 1);
+  }, [hasPreviousPage, state.isLoading, goToPage, displayPage]);
 
   const resetSearch = useCallback(() => {
     setApiSearchTerm("");
+    setDisplayPage(1);
+    currentQueryRef.current = "";
     dispatch({ type: "RESET" });
   }, []);
 
   return {
     apiSearchTerm,
-    results: state.results,
+    results: displayedResults,
     isLoading: state.isLoading,
     hasSearched: state.hasSearched,
     errorMessage: state.errorMessage,
-    currentPage: state.currentPage,
-    hasNextPage: state.hasNextPage,
-    hasPreviousPage: state.hasPreviousPage,
+    currentPage: displayPage,
+    totalPages,
+    totalCount: state.totalCount,
+    hasNextPage,
+    hasPreviousPage,
     setApiSearchTerm,
     searchBooks,
+    goToPage,
     goToNextPage,
     goToPreviousPage,
     resetSearch,

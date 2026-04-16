@@ -7,10 +7,13 @@ export type UseGutendexSearchReturn = {
   hasSearched: boolean;
   errorMessage: string | null;
   currentPage: number;
+  totalPages: number;
+  totalCount: number;
   hasNextPage: boolean;
   hasPreviousPage: boolean;
   setApiSearchTerm: (value: string) => void;
-  searchBooks: (params?: { page?: number; term?: string }) => Promise<void>;
+  searchBooks: () => Promise<void>;
+  goToPage: (page: number) => Promise<void>;
   goToNextPage: () => Promise<void>;
   goToPreviousPage: () => Promise<void>;
   resetSearch: () => void;

@@ -5,13 +5,14 @@ import type { ReadFilter } from "../types/library-filter.type";
 import type { UseLibraryReturn } from "../types/use-library-return.type";
 import { normalizeString } from "../utils/normalize-string";
 
-const PAGE_SIZE = import.meta.env.VITE_PAGE_SIZE;
 
 type BooksAction =
   | { type: "ADD"; book: LibraryBook }
   | { type: "REMOVE"; bookId: number }
   | { type: "TOGGLE_READ"; bookId: number }
   | { type: "CLEAR" };
+
+const DEFAULT_PAGE_SIZE = Number(import.meta.env.VITE_PAGE_SIZE);
 
 const booksReducer = (state: LibraryBook[], action: BooksAction): LibraryBook[] => {
   switch (action.type) {
@@ -39,6 +40,7 @@ export const useLibrary = (): UseLibraryReturn => {
   const [librarySearchTerm, setLibrarySearchTermRaw] = useState("");
   const [readFilter, setReadFilterRaw] = useState<ReadFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSizeRaw] = useState(DEFAULT_PAGE_SIZE);
 
   useEffect(() => {
     saveLibrary(books);
@@ -51,6 +53,11 @@ export const useLibrary = (): UseLibraryReturn => {
 
   const setReadFilter = (value: ReadFilter) => {
     setReadFilterRaw(value);
+    setCurrentPage(1);
+  };
+
+  const setPageSize = (size: number) => {
+    setPageSizeRaw(size);
     setCurrentPage(1);
   };
 
@@ -98,7 +105,7 @@ export const useLibrary = (): UseLibraryReturn => {
     });
   }, [books, librarySearchTerm, readFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredBooks.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredBooks.length / pageSize));
 
   /**
    * Tranche de filteredBooks correspondant à la page courante.
@@ -107,9 +114,14 @@ export const useLibrary = (): UseLibraryReturn => {
    */
   const safePage = Math.min(currentPage, totalPages);
   const paginatedBooks = useMemo(() => {
-    const start = (safePage - 1) * PAGE_SIZE;
-    return filteredBooks.slice(start, start + PAGE_SIZE);
-  }, [filteredBooks, safePage]);
+    const start = (safePage - 1) * pageSize;
+    return filteredBooks.slice(start, start + pageSize);
+  }, [filteredBooks, safePage, pageSize]);
+
+  const goToPage = (page: number) => {
+    const clamped = Math.max(1, Math.min(page, totalPages));
+    setCurrentPage(clamped);
+  };
 
   const goToNextPage = () => {
     if (currentPage < totalPages) {
@@ -131,12 +143,15 @@ export const useLibrary = (): UseLibraryReturn => {
     readFilter,
     currentPage: safePage,
     totalPages,
+    pageSize,
     addBook,
     removeBook,
     toggleReadStatus,
     setLibrarySearchTerm,
     setReadFilter,
+    setPageSize,
     clearLibrary,
+    goToPage,
     goToNextPage,
     goToPreviousPage,
   };
